@@ -42,7 +42,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.file.impl.FileResolver;
-import io.vertx.core.impl.VertxImplEx;
+import io.vertx.core.impl.VertxHack;
 import io.vertx.core.logging.SLF4JLogDelegateFactory;
 
 /**
@@ -62,12 +62,12 @@ public final class VertxUtils {
   private static final long BLOCKED_THREAD_CHECK_INTERVAL = Long.MAX_VALUE / 2;
 
   // key为vertx实例名称，以支撑vertx功能分组
-  private static Map<String, VertxImplEx> vertxMap = new ConcurrentHashMapEx<>();
+  private static Map<String, Vertx> vertxMap = new ConcurrentHashMapEx<>();
 
   private VertxUtils() {
   }
 
-  public static Map<String, VertxImplEx> getVertxMap() {
+  public static Map<String, Vertx> getVertxMap() {
     return vertxMap;
   }
 
@@ -111,7 +111,7 @@ public final class VertxUtils {
   }
 
   public static Vertx getOrCreateVertxByName(String name, VertxOptions vertxOptions) {
-    return vertxMap.computeIfAbsent(name, vertxName -> (VertxImplEx) init(vertxName, vertxOptions));
+    return vertxMap.computeIfAbsent(name, vertxName -> init(vertxName, vertxOptions));
   }
 
   public static Vertx init(VertxOptions vertxOptions) {
@@ -130,7 +130,7 @@ public final class VertxUtils {
     }
 
     configureVertxFileCaching();
-    return new VertxImplEx(name, vertxOptions);
+    return VertxHack.getVertx(name, vertxOptions);
   }
 
   /**
