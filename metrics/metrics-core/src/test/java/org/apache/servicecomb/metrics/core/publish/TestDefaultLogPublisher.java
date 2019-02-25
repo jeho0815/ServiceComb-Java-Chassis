@@ -50,7 +50,7 @@ import org.junit.Test;
 import com.google.common.eventbus.EventBus;
 import com.netflix.spectator.api.Measurement;
 
-import io.vertx.core.impl.VertxImplEx;
+import io.vertx.core.impl.VertxImpl;
 import mockit.Expectations;
 import mockit.Mock;
 import mockit.MockUp;
@@ -132,12 +132,12 @@ public class TestDefaultLogPublisher {
   }
 
   @Test
-  public void onPolledEvent(@Mocked VertxImplEx vertxImplEx, @Mocked MeasurementTree tree) {
+  public void onPolledEvent(@Mocked VertxImpl vertxImpl, @Mocked MeasurementTree tree) {
     new Expectations(VertxUtils.class) {
       {
         VertxUtils.getVertxMap();
-        result = Collections.singletonMap("v", vertxImplEx);
-        vertxImplEx.getEventLoopContextCreatedCount();
+        result = Collections.singletonMap("v", vertxImpl);
+        VertxUtils.getEventLoopContextCreatedCount(anyString);
         result = 1;
       }
     };

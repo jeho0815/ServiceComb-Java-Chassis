@@ -55,6 +55,7 @@ import io.protostuff.runtime.ProtobufCompatibleUtils;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import mockit.Deencapsulation;
 import mockit.Mock;
@@ -84,7 +85,7 @@ public class TestHighwayClient {
     AbstractConfiguration configuration =
         (AbstractConfiguration) DynamicPropertyFactory.getBackingConfigurationSource();
     configuration.addProperty(REQUEST_TIMEOUT_KEY, 2000);
-
+    Vertx vertx = VertxUtils.getOrCreateVertxByName("transport", new VertxOptions());
     new MockUp<System>() {
       @Mock
       long nanoTime() {

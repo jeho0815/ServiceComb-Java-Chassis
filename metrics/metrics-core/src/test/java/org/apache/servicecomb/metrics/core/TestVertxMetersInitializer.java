@@ -119,6 +119,12 @@ public class TestVertxMetersInitializer {
         result = transportVertxFactory;
       }
     };
+    new Expectations(VertxUtils.class) {
+      {
+        VertxUtils.getEventLoopContextCreatedCount(anyString);
+        result = 4;
+      }
+    };
 
     globalRegistry.add(registry);
     vertxMetersInitializer.init(globalRegistry, eventBus, null);
@@ -172,7 +178,6 @@ public class TestVertxMetersInitializer {
         + "      listen                connectCount    disconnectCount rejectByLimit   connections  send(Bps)    receive(Bps)\n"
         + "      0.0.0.0:0             1               0               0               1            21           4           \n"
         + "      (summary)             1               0               0               1            21           4           \n\n";
-
     Assert.assertEquals(expect, actual);
   }
 }
