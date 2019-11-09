@@ -933,7 +933,8 @@ public class TestLoadBalanceHandler2 {
   private ServiceCombServerStats mockServiceCombServerStats(ServiceCombServer serviceCombServer, int failureCount,
       boolean isIsolatedStatus) {
     ServiceCombServerStats serviceCombServerStats =
-        ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(serviceCombServer);
+        ServiceCombLoadBalancerStats.INSTANCE
+            .getServiceCombServerStats(serviceCombServer.getInstance().getInstanceId());
     for (int i = 0; i < failureCount; ++i) {
       serviceCombServerStats.markFailure();
     }

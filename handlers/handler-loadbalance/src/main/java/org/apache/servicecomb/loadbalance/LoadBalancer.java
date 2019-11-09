@@ -68,7 +68,8 @@ public class LoadBalancer {
     if (null == server) {
       return null;
     }
-    ServiceCombServerStats serverStats = ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(server);
+    ServiceCombServerStats serverStats = ServiceCombLoadBalancerStats.INSTANCE
+        .getServiceCombServerStats(server.getInstance().getInstanceId());
     if (serverStats.isIsolated()) {
       LOGGER.info("The Service {}'s instance {} has been isolated for a while, give a single test opportunity.",
           invocation.getMicroserviceName(),

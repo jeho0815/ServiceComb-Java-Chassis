@@ -75,7 +75,7 @@ public class IsolationDiscoveryFilterTest {
       instance.setEndpoints(Collections.singletonList(endpoint));
       data.put(instance.getInstanceId(), instance);
       ServiceCombServer serviceCombServer = new ServiceCombServer(transport, new CacheEndpoint(endpoint, instance));
-      ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(serviceCombServer);
+      ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(serviceCombServer.getInstance().getInstanceId());
     }
     discoveryTreeNode.data(data);
 
@@ -115,21 +115,25 @@ public class IsolationDiscoveryFilterTest {
 
     // by default 5 times continuous failure will cause isolation
     ServiceCombLoadBalancerStats.INSTANCE.markFailure(server0);
-    Assert.assertFalse(ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(server0).isIsolated());
+    Assert.assertFalse(
+        ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(server0.getInstance().getInstanceId())
+            .isIsolated());
 
     childNode = filter.discovery(discoveryContext, discoveryTreeNode);
     childNodeData = childNode.data();
     Assert.assertThat(childNodeData.keySet(), Matchers.containsInAnyOrder("i1", "i2"));
     Assert.assertEquals(data.get("i1"), childNodeData.get("i1"));
     Assert.assertEquals(data.get("i2"), childNodeData.get("i2"));
-    Assert.assertTrue(ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(server0).isIsolated());
+    Assert.assertTrue(
+        ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(server0.getInstance().getInstanceId())
+            .isIsolated());
   }
 
   @Test
   public void discovery_try_isolated_instance_after_singleTestTime() {
     ServiceCombServer server0 = ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServer(data.get("i0"));
     ServiceCombServerStats serviceCombServerStats = ServiceCombLoadBalancerStats.INSTANCE
-        .getServiceCombServerStats(server0);
+        .getServiceCombServerStats(server0.getInstance().getInstanceId());
     for (int i = 0; i < 5; ++i) {
       serviceCombServerStats.markFailure();
     }
@@ -155,7 +159,7 @@ public class IsolationDiscoveryFilterTest {
   public void discovery_not_try_isolated_instance_concurrently() {
     ServiceCombServer server0 = ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServer(data.get("i0"));
     ServiceCombServerStats serviceCombServerStats = ServiceCombLoadBalancerStats.INSTANCE
-        .getServiceCombServerStats(server0);
+        .getServiceCombServerStats(server0.getInstance().getInstanceId());
     for (int i = 0; i < 5; ++i) {
       serviceCombServerStats.markFailure();
     }
@@ -213,7 +217,7 @@ public class IsolationDiscoveryFilterTest {
     Assert.assertEquals(data.get("i2"), childNodeData.get("i2"));
 
     ServiceCombServerStats serviceCombServerStats = ServiceCombLoadBalancerStats.INSTANCE
-        .getServiceCombServerStats(server0);
+        .getServiceCombServerStats(server0.getInstance().getInstanceId());
     Deencapsulation.setField(serviceCombServerStats, "lastVisitTime",
         System.currentTimeMillis() - Configuration.INSTANCE.getMinIsolationTime(invocation.getMicroserviceName()) - 1);
     childNode = filter.discovery(discoveryContext, discoveryTreeNode);
@@ -229,7 +233,7 @@ public class IsolationDiscoveryFilterTest {
     ServiceCombServer server0 = ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServer(data.get("i0"));
     ServiceCombLoadBalancerStats.INSTANCE.markSuccess(server0);
     ServiceCombServerStats serviceCombServerStats = ServiceCombLoadBalancerStats.INSTANCE
-        .getServiceCombServerStats(server0);
+        .getServiceCombServerStats(server0.getInstance().getInstanceId());
     Deencapsulation.setField(serviceCombServerStats, "lastVisitTime",
         System.currentTimeMillis() - Configuration.INSTANCE.getMinIsolationTime(invocation.getMicroserviceName()) - 1);
 
@@ -240,6 +244,8 @@ public class IsolationDiscoveryFilterTest {
     Assert.assertEquals(data.get("i0"), childNodeData.get("i0"));
     Assert.assertEquals(data.get("i1"), childNodeData.get("i1"));
     Assert.assertEquals(data.get("i2"), childNodeData.get("i2"));
-    Assert.assertFalse(ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(server0).isIsolated());
+    Assert.assertFalse(
+        ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(server0.getInstance().getInstanceId())
+            .isIsolated());
   }
 }

@@ -139,7 +139,8 @@ public class IsolationDiscoveryFilter implements DiscoveryFilter {
       // first time accessed.
       return true;
     }
-    ServiceCombServerStats serverStats = ServiceCombLoadBalancerStats.INSTANCE.getServiceCombServerStats(server);
+    ServiceCombServerStats serverStats = ServiceCombLoadBalancerStats.INSTANCE
+        .getServiceCombServerStats(instance.getInstanceId());
     Settings settings = createSettings(invocation);
     if (!checkThresholdAllowed(settings, serverStats)) {
       if (serverStats.isIsolated()

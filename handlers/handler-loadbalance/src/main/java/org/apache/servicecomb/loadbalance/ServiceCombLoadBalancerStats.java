@@ -17,7 +17,6 @@
 
 package org.apache.servicecomb.loadbalance;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -45,15 +44,15 @@ import com.netflix.config.DynamicPropertyFactory;
 public class ServiceCombLoadBalancerStats {
   private final static Logger LOGGER = LoggerFactory.getLogger(ServiceCombLoadBalancerStats.class);
 
-  private final Map<ServiceCombServer, ServiceCombServerStats> pingView = new ConcurrentHashMap<>();
+  private final Map<String, ServiceCombServerStats> pingView = new ConcurrentHashMap<>();
 
   private int serverExpireInSeconds = DynamicPropertyFactory.getInstance()
       .getIntProperty(Configuration.RPOP_SERVER_EXPIRED_IN_SECONDS, 300).get();
 
-  private long timerIntervalInMilis = DynamicPropertyFactory.getInstance()
+  private long timerIntervalInMillis = DynamicPropertyFactory.getInstance()
       .getLongProperty(Configuration.RPOP_TIMER_INTERVAL_IN_MINIS, 10000).get();
 
-  private LoadingCache<ServiceCombServer, ServiceCombServerStats> serverStatsCache;
+  private LoadingCache<String, ServiceCombServerStats> serverStatsCache;
 
   public static final ServiceCombLoadBalancerStats INSTANCE;
 
@@ -72,7 +71,7 @@ public class ServiceCombLoadBalancerStats {
 
   public void markIsolated(ServiceCombServer server, boolean isolated) {
     try {
-      serverStatsCache.get(server).markIsolated(isolated);
+      getServerStatusFromCache(server).markIsolated(isolated);
     } catch (ExecutionException e) {
       LOGGER.error("Not expected to happen, maybe a bug.", e);
     }
@@ -80,7 +79,7 @@ public class ServiceCombLoadBalancerStats {
 
   public void markSuccess(ServiceCombServer server) {
     try {
-      serverStatsCache.get(server).markSuccess();
+      getServerStatusFromCache(server).markSuccess();
     } catch (ExecutionException e) {
       LOGGER.error("Not expected to happen, maybe a bug.", e);
     }
@@ -88,15 +87,15 @@ public class ServiceCombLoadBalancerStats {
 
   public void markFailure(ServiceCombServer server) {
     try {
-      serverStatsCache.get(server).markFailure();
+      getServerStatusFromCache(server).markFailure();
     } catch (ExecutionException e) {
       LOGGER.error("Not expected to happen, maybe a bug.", e);
     }
   }
 
-  public ServiceCombServerStats getServiceCombServerStats(ServiceCombServer server) {
+  public ServiceCombServerStats getServiceCombServerStats(String instanceId) {
     try {
-      return serverStatsCache.get(server);
+      return serverStatsCache.get(instanceId);
     } catch (ExecutionException e) {
       LOGGER.error("Not expected to happen, maybe a bug.", e);
       return null;
@@ -104,12 +103,20 @@ public class ServiceCombLoadBalancerStats {
   }
 
   public ServiceCombServer getServiceCombServer(MicroserviceInstance instance) {
-    for (ServiceCombServer server : serverStatsCache.asMap().keySet()) {
-      if (server.getInstance().equals(instance)) {
-        return server;
+    return getServiceCombServer(instance.getInstanceId());
+  }
+
+  public ServiceCombServer getServiceCombServer(String instanceId) {
+    try {
+      ServiceCombServerStats serviceCombServerStats = serverStatsCache.get(instanceId);
+      if (serviceCombServerStats == null) {
+        return null;
       }
+      return serviceCombServerStats.getServiceCombServer();
+    } catch (ExecutionException e) {
+      LOGGER.error("Not expected to happen, maybe a bug.", e);
+      return null;
     }
-    return null;
   }
 
   @VisibleForTesting
@@ -118,12 +125,20 @@ public class ServiceCombLoadBalancerStats {
   }
 
   @VisibleForTesting
-  void setTimerIntervalInMilis(int milis) {
-    this.timerIntervalInMilis = milis;
+  void setTimerIntervalInMillis(int millis) {
+    this.timerIntervalInMillis = millis;
+  }
+
+  private ServiceCombServerStats getServerStatusFromCache(ServiceCombServer server) throws ExecutionException {
+    ServiceCombServerStats stats = serverStatsCache.get(server.getInstance().getInstanceId());
+    if (stats.getServiceCombServer() == null) {
+      stats.setServiceCombServer(server);
+    }
+    return stats;
   }
 
   @VisibleForTesting
-  Map<ServiceCombServer, ServiceCombServerStats> getPingView() {
+  Map<String, ServiceCombServerStats> getPingView() {
     return this.pingView;
   }
 
@@ -139,18 +154,18 @@ public class ServiceCombLoadBalancerStats {
     serverStatsCache =
         CacheBuilder.newBuilder()
             .expireAfterAccess(serverExpireInSeconds, TimeUnit.SECONDS)
-            .removalListener(new RemovalListener<ServiceCombServer, ServiceCombServerStats>() {
+            .removalListener(new RemovalListener<String, ServiceCombServerStats>() {
               @Override
-              public void onRemoval(RemovalNotification<ServiceCombServer, ServiceCombServerStats> notification) {
-                LOGGER.info("stats of instance {} removed.", notification.getKey().getInstance().getInstanceId());
+              public void onRemoval(RemovalNotification<String, ServiceCombServerStats> notification) {
+                LOGGER.info("stats of instance {} removed.", notification.getKey());
                 pingView.remove(notification.getKey());
               }
             })
             .build(
-                new CacheLoader<ServiceCombServer, ServiceCombServerStats>() {
-                  public ServiceCombServerStats load(ServiceCombServer server) {
+                new CacheLoader<String, ServiceCombServerStats>() {
+                  public ServiceCombServerStats load(String instanceId) {
                     ServiceCombServerStats stats = new ServiceCombServerStats();
-                    pingView.put(server, stats);
+                    pingView.put(instanceId, stats);
                     return stats;
                   }
                 });
@@ -162,12 +177,13 @@ public class ServiceCombLoadBalancerStats {
       @Override
       public void run() {
         try {
-          Map<ServiceCombServer, ServiceCombServerStats> allServers = pingView;
+          Map<String, ServiceCombServerStats> allServers = pingView;
           allServers.entrySet().forEach(serviceCombServerServiceCombServerStatsEntry -> {
-            ServiceCombServer server = serviceCombServerServiceCombServerStatsEntry.getKey();
+            String instanceId = serviceCombServerServiceCombServerStatsEntry.getKey();
+            ServiceCombServer server = getServiceCombServer(instanceId);
             ServiceCombServerStats stats = serviceCombServerServiceCombServerStatsEntry.getValue();
-            if ((System.currentTimeMillis() - stats.getLastVisitTime() > timerIntervalInMilis) && !ping
-                    .ping(server.getInstance())) {
+            if ((System.currentTimeMillis() - stats.getLastVisitTime() > timerIntervalInMillis) && !ping
+                .ping(server.getInstance())) {
               LOGGER.info("ping mark server {} failure.", server.getInstance().getInstanceId());
               stats.markFailure();
             }
@@ -177,7 +193,7 @@ public class ServiceCombLoadBalancerStats {
           LOGGER.warn("LoadBalancerStatsTimer error.", e);
         }
       }
-    }, timerIntervalInMilis, timerIntervalInMilis);
+    }, timerIntervalInMillis, timerIntervalInMillis);
   }
 }
 

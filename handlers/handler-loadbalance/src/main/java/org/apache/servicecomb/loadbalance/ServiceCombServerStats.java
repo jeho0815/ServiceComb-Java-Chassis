@@ -63,6 +63,11 @@ public class ServiceCombServerStats {
     return globalAllowIsolatedServerTryingFlag.get();
   }
 
+  private ServiceCombServer serviceCombServer;
+
+  public ServiceCombServerStats() {
+  }
+
   /**
    * Applying for a trying chance for the isolated server. There is only 1 trying chance globally concurrently.
    *
@@ -164,5 +169,13 @@ public class ServiceCombServerStats {
 
   public boolean isIsolated() {
     return isolated;
+  }
+
+  public ServiceCombServer getServiceCombServer() {
+    return serviceCombServer;
+  }
+
+  public void setServiceCombServer(ServiceCombServer serviceCombServer) {
+    this.serviceCombServer = serviceCombServer;
   }
 }
